@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Ghost in the Machine · Beach Bytes</title>
+<style>
+:root{
+  --bg:#0f0819; --panel:#22153b; --panel2:#2b1b4a; --line:#3d2a63;
+  --orange:#ff8a1f; --glow:#ffc15a; --yellow:#fff1a8; --text:#f7efff; --dim:#a898c4;
+  --good:#6be08c; --bad:#ff6b7a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(1200px 700px at 50% -10%, #2a1650 0%, var(--bg) 60%);
+  color:var(--text);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:auto}
+.screen.active{display:flex}
+.web{position:fixed;font-size:90px;opacity:.12;pointer-events:none;user-select:none}
+.web.tl{top:-14px;left:-6px}.web.tr{top:-14px;right:-6px;transform:scaleX(-1)}
+
+/* intro */
+#screen-intro,#screen-win{align-items:center;justify-content:center;text-align:center;padding:24px}
+.wrap{max-width:1000px;width:100%}
+h1{font-size:clamp(2rem,5vw,3.4rem);margin:8px 0 6px;color:var(--glow);text-shadow:0 0 24px rgba(255,138,31,.55)}
+.sub{font-size:clamp(1rem,2vw,1.25rem);color:#e6d8fb;margin:0 auto 22px;max-width:640px;line-height:1.45}
+.modes{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.mode{background:var(--panel);border:2px solid var(--line);border-radius:22px;padding:20px 26px;min-width:240px;max-width:310px;flex:1;
+  transition:transform .15s,border-color .15s,box-shadow .15s}
+.mode:hover,.mode:focus-visible{transform:translateY(-4px);border-color:var(--orange);box-shadow:0 0 28px rgba(255,138,31,.35);outline:none}
+.mode .big-emoji{font-size:3rem}
+.mode h2{margin:6px 0 4px;font-size:1.6rem}
+.mode p{margin:0;color:var(--dim);font-size:1rem}
+.foot{margin-top:26px;color:var(--dim);font-size:.9rem}
+.ghost-hero{width:120px;height:144px;filter:drop-shadow(0 0 22px rgba(255,255,255,.45));animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-10px)}}
+
+/* game */
+.hud{display:flex;align-items:center;gap:14px;padding:10px 16px;background:rgba(20,10,35,.85);border-bottom:1px solid var(--line)}
+.hud .title{font-weight:700;font-size:1.05rem}
+.hud .spacer{flex:1}
+.timer{font-variant-numeric:tabular-nums;font-size:1.7rem;font-weight:800;color:var(--glow);text-shadow:0 0 14px rgba(255,138,31,.5)}
+.pen{font-size:.85rem;color:var(--bad);margin-left:6px;font-weight:700}
+.candles{font-size:1.4rem;letter-spacing:2px}
+.candles .used{filter:grayscale(1);opacity:.3}
+.iconbtn{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px 12px;font-size:1rem}
+.iconbtn:hover{border-color:var(--orange)}
+.board{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 10px}
+.board svg{width:100%;height:100%}
+svg text{font-family:inherit}
+.boobar{display:flex;gap:12px;align-items:center;padding:10px 18px;background:rgba(20,10,35,.9);border-top:1px solid var(--line)}
+.boobar .av{width:46px;height:55px;flex:none}
+.bubble{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:10px 16px;font-size:1.1rem;flex:1;line-height:1.35;min-height:48px;display:flex;align-items:center}
+
+/* board bits */
+.wire{fill:none;stroke:#3b2d4d;stroke-width:6;stroke-linecap:round}
+.wire.on{stroke:var(--glow);filter:url(#glow);stroke-dasharray:14 10;animation:flow 1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-24}}
+.gate rect.box{fill:#1d1233;stroke:#4a3573;stroke-width:3}
+.gate.on rect.box{stroke:var(--glow);fill:#2a1a14;filter:url(#glow)}
+.gate{cursor:pointer}
+.gate:focus-visible rect.box,.gate:hover rect.box{stroke:var(--orange)}
+.gname{fill:#fff;font-weight:700;font-size:14px;text-anchor:middle}
+.gname.sm{font-size:12px}
+.greal{fill:var(--dim);font-size:12px;text-anchor:middle}
+.gnote{fill:#d9c8f5;font-size:12px;text-anchor:middle}
+.port{fill:#1d1233;stroke:#4a3573;stroke-width:3}
+.badge-bg{fill:#22153b;stroke:#4a3573;stroke-width:2}
+.badge-bg.on{fill:var(--orange);stroke:var(--glow)}
+.badge-t{fill:#fff;font-weight:800;font-size:14px;text-anchor:middle;dominant-baseline:central}
+.sw{cursor:pointer}
+.sw:focus{outline:none}
+.hit{fill:transparent;stroke:none}
+.pk{transform:scale(.85);transform-origin:0 0;transition:transform .15s ease-out}
+.sw:hover .pk,.sw:focus-visible .pk{transform:scale(.96)}
+.sw.row .pk{transform:scale(.6)}
+.sw.row:hover .pk,.sw.row:focus-visible .pk{transform:scale(.68)}
+.rowbg{fill:#1a1030;stroke:#33224f;stroke-width:1.5}
+.rt1{fill:#fff;font-weight:700;font-size:14px}
+.rt2{fill:var(--dim);font-size:12px}
+.rt3{fill:var(--glow);font-size:12px;font-weight:700}
+.rib{stroke-width:2}
+.sw.on .rib{fill:#ff8a1f;stroke:#c25a00}
+.sw.on .body{fill:#ff9a2e;stroke:#c25a00;stroke-width:2}
+.sw.on .face{fill:var(--yellow);filter:url(#glow)}
+.sw.off .rib{fill:#4a3a56;stroke:#2e2238}
+.sw.off .body{fill:#56445f;stroke:#2e2238;stroke-width:2}
+.sw.off .face{fill:#160d20}
+.stem{fill:#5a8f3a;stroke:#2f5a1c;stroke-width:2}
+.sw.on .halo{opacity:1}.halo{opacity:0;fill:rgba(255,160,40,.22)}
+.ring{fill:none;stroke:var(--orange);stroke-width:3;stroke-dasharray:6 8;animation:spin 6s linear infinite;transform-origin:center;transform-box:fill-box}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lbl1{fill:#fff;font-weight:700;font-size:15px;text-anchor:middle}
+.lbl2{fill:var(--dim);font-size:13px;text-anchor:middle}
+.lbl3{fill:var(--glow);font-size:13px;text-anchor:middle;font-weight:700}
+.exit-open .box{animation:openpulse .8s ease-in-out infinite alternate}
+@keyframes openpulse{to{stroke:#fff}}
+.sym{width:96px;height:72px;color:var(--glow)}
+.tip{position:fixed;left:0;top:0;z-index:15;width:270px;background:var(--panel2);border:2px solid var(--orange);border-radius:14px;padding:12px 14px;
+  box-shadow:0 0 30px rgba(255,138,31,.35);pointer-events:none;opacity:0;visibility:hidden;transition:opacity .12s}
+.tip.show{opacity:1;visibility:visible}
+.tip .th{display:flex;align-items:center;gap:10px}
+.tip .sym{width:68px;height:52px;flex:none}
+.tip .tn{font-weight:800;font-size:1.05rem;line-height:1.2}
+.tip .tr{color:var(--dim);font-size:.85rem}
+.tip p{margin:8px 0 4px;font-size:.95rem;line-height:1.35}
+.tip table.tt{font-size:.9rem;margin:6px 0 0;width:100%}
+.tip table.tt th,.tip table.tt td{padding:3px 8px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(5,2,12,.78);display:flex;align-items:center;justify-content:center;padding:14px;z-index:20}
+.modal[hidden]{display:none}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:22px;max-width:700px;width:100%;max-height:96vh;overflow:auto;padding:22px 26px;
+  box-shadow:0 0 50px rgba(255,138,31,.2)}
+.card h2{margin:6px 0 8px;font-size:1.7rem;color:var(--glow)}
+.tagrow{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:3px 12px;font-size:.85rem;font-weight:700;background:#3b2a63}
+.chip.code{background:#1f4d7a}.chip.logic{background:#6a2a7a}.chip.dim{background:#2a2040;color:var(--dim)}
+.story{font-size:1.15rem;line-height:1.45;margin:6px 0 12px}
+.q{font-size:1.25rem;font-weight:700;margin:14px 0 10px}
+.blocks{margin:8px 0 6px}
+.block{display:block;width:fit-content;border-radius:10px;padding:8px 14px;margin:3px 0;font-weight:700;font-size:1.1rem;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.block.event{background:#d9a21b;color:#1b1200}.block.control{background:#e68a1a;color:#1b0f00}
+.block.motion{background:#3a7bd5}.block.looks{background:#9a5ce0}
+.slot{background:#fff;color:#222;border-radius:999px;padding:1px 10px;margin:0 2px}
+.py{background:#12091f;border:1px solid var(--line);border-radius:12px;padding:10px 0;font-family:Consolas,"Courier New",monospace;font-size:1rem;line-height:1.55;margin:8px 0;overflow-x:auto}
+.py .ln{display:flex;white-space:pre;min-height:1.55em}
+.py .no{color:#6b5a8a;width:38px;text-align:right;padding-right:14px;flex:none;user-select:none}
+.py .tx{color:#f2e8ff;padding-right:14px}
+.clues{background:#2a1c47;border-radius:14px;padding:12px 18px 12px 36px;font-size:1.15rem;line-height:1.6;margin:6px 0}
+.clues.plain{list-style:none;padding-left:18px}
+.big{font-size:2.1rem;letter-spacing:5px;background:#2a1c47;border-radius:14px;padding:12px;text-align:center;margin:8px 0;font-weight:800}
+.big.long{font-size:1.45rem;letter-spacing:2px;line-height:1.7;white-space:pre-line}
+.keystrip{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+.keystrip span{background:#2a1c47;border-radius:8px;padding:3px 7px;font-size:.9rem;text-align:center;min-width:34px}
+.keystrip b{display:block;color:var(--glow)}
+.keystrip.rot span{min-width:64px}
+.keystrip.rot b{display:inline}
+.keystrip.alpha span{min-width:28px}
+.choices{display:flex;gap:10px;flex-wrap:wrap}
+.choice{flex:1;min-width:120px;background:#2f1f52;border:2px solid var(--line);border-radius:16px;padding:14px 12px;font-size:1.35rem;font-weight:700}
+.choice:hover:not(:disabled){border-color:var(--orange)}
+.choice:disabled{opacity:.35;text-decoration:line-through}
+.answerrow{display:flex;gap:10px}
+.answerrow input{flex:1;font:inherit;font-size:1.4rem;padding:10px 14px;border-radius:14px;border:2px solid var(--line);background:#150c26;color:#fff;min-width:0}
+.answerrow input:focus{outline:none;border-color:var(--orange)}
+.btn{border:2px solid var(--line);background:#2f1f52;border-radius:14px;padding:10px 18px;font-weight:700;font-size:1.05rem}
+.btn:hover:not(:disabled){border-color:var(--orange)}
+.btn.primary{background:var(--orange);border-color:var(--orange);color:#1b0f00}
+.btn.warn{background:#7a2a3a;border-color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;justify-content:space-between}
+.fb{min-height:1.6em;margin-top:10px;font-size:1.15rem;font-weight:700}
+.fb.good{color:var(--good)}.fb.bad{color:var(--bad)}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.hintlist{margin-top:6px}
+.hintitem{background:#33244f;border-left:5px solid var(--glow);border-radius:10px;padding:8px 12px;margin:6px 0;font-size:1.05rem}
+.ans-key{margin-top:12px;font-size:.85rem;color:var(--dim);border-top:1px dashed var(--line);padding-top:8px}
+table.tt{border-collapse:collapse;margin:10px auto;font-size:1.25rem}
+table.tt th,table.tt td{border:1px solid var(--line);padding:8px 16px;text-align:center}
+table.tt th{background:#2a1c47;color:var(--dim);font-size:.95rem}
+table.tt tr.now td{background:rgba(255,138,31,.28);font-weight:800}
+table.tt.puz{font-size:1.05rem}
+table.tt.puz td,table.tt.puz th{padding:5px 18px}
+table.tt.puz td.out{color:var(--glow);font-weight:800}
+
+/* win */
+.stats{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 22px;min-width:150px}
+.stat b{display:block;font-size:1.8rem;color:var(--glow)}
+.stat span{color:var(--dim);font-size:.95rem}
+.mail{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px 20px;margin:14px auto;max-width:560px;text-align:left}
+.mail h3{margin:0 0 8px}
+.mail label{display:block;margin:8px 0 4px;color:var(--dim);font-size:.95rem}
+.mail input{width:100%;font:inherit;font-size:1.1rem;padding:9px 12px;border-radius:12px;border:2px solid var(--line);background:#150c26;color:#fff}
+.mail input:focus{outline:none;border-color:var(--orange)}
+.mail .fine{font-size:.82rem;color:var(--dim);margin:8px 0}
+.mailstat{min-height:1.4em;font-weight:700;margin-top:8px}
+.winbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<span class="web tl">🕸️</span><span class="web tr">🕸️</span>
+
+<!-- INTRO -->
+<section id="screen-intro" class="screen active">
+  <div class="wrap">
+    <div id="introGhost" class="ghost-hero" style="margin:0 auto"></div>
+    <h1>The Ghost in the Machine</h1>
+    <p class="sub">Help! I'm <b>Boo-lean</b>, and I'm trapped inside the haunted computer! Light up the right pumpkins to open the Crypt Door and set me free. But careful: you have to solve the <i>right</i> puzzles!</p>
+    <div class="modes">
+      <button class="mode" data-mode="mini"><div class="big-emoji">👻</div><h2>Mini</h2><p>About 5–10 minutes · 2 puzzles</p></button>
+      <button class="mode" data-mode="short"><div class="big-emoji">🎃</div><h2>Short</h2><p>About 10–15 minutes · 3 puzzles</p></button>
+      <button class="mode" data-mode="long"><div class="big-emoji">💀</div><h2>Long</h2><p>About 40–60 minutes · ages 10+ · 9 puzzles</p></button>
+    </div>
+    <div class="foot">Made at Beach Bytes · Tap a mode to begin</div>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="screen-game" class="screen">
+  <div class="hud">
+    <div class="title" id="hudTitle">👻 Ghost in the Machine</div>
+    <div class="spacer"></div>
+    <div><span class="timer" id="timer">00:00</span><span class="pen" id="pen"></span></div>
+    <div class="candles" id="candles" title="Hints left"></div>
+    <button class="iconbtn" id="soundBtn" title="Sound on/off">🔇</button>
+    <button class="iconbtn" id="newBtn" title="Start over">🏠 New player</button>
+  </div>
+  <div class="board"><svg id="board" viewBox="0 40 1000 540" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Logic circuit"></svg></div>
+  <div class="boobar"><div class="av" id="booAv"></div><div class="bubble" id="boo"></div></div>
+</section>
+
+<!-- WIN -->
+<section id="screen-win" class="screen">
+  <div class="wrap">
+    <div id="winGhost" class="ghost-hero" style="margin:0 auto"></div>
+    <h1>You escaped! 🎉</h1>
+    <p class="sub" id="winMsg"></p>
+    <div class="stats">
+      <div class="stat"><b id="stTime">0:00</b><span>Final time</span></div>
+      <div class="stat"><b id="stHints">0</b><span>Hints used</span></div>
+      <div class="stat"><b id="stSolved">0</b><span id="stSolvedLbl">Puzzles solved</span></div>
+    </div>
+    <p class="sub" style="margin-bottom:6px">🍬 Boo-lean says: grab a treat from the bowl on your way out!</p>
+    <div class="mail" id="mailBox">
+      <h3>📧 Get your escape certificate by email</h3>
+      <label for="mName">Your name (optional)</label>
+      <input id="mName" maxlength="24" autocomplete="off" placeholder="Escapee's name">
+      <label for="mEmail">Grown-up's email address</label>
+      <input id="mEmail" type="email" maxlength="120" autocomplete="off" placeholder="name@example.com">
+      <p class="fine">Ask a grown-up to type the address. We only use it to send this one email. We don't keep it or add anyone to a list.</p>
+      <button class="btn primary" id="mSend">Send my certificate</button>
+      <div class="mailstat" id="mStat" aria-live="polite"></div>
+    </div>
+    <div class="winbtns">
+      <button class="btn" id="againBtn">Play again</button>
+      <button class="btn primary" id="nextBtn">Next player ▶</button>
+    </div>
+  </div>
+</section>
+
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="modal" id="modal" hidden><div class="card" id="card" role="dialog" aria-modal="true"></div></div>
+
+<script>
+/* ============ SETTINGS (edit these) ============ */
+const CONFIG = {
+  EMAIL_ENDPOINT: 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE', // see Code.gs setup steps
+  HINT_PENALTY_SEC: 180,   // each hint adds this many seconds
+  MAX_HINTS: 3
+};
+const ANSWERS = new URLSearchParams(location.search).has('answers'); // add ?answers=1 for the facilitator answer key
+
+/* ============ GATES ============ */
+const GATES = {
+  OR:  {name:'The Either Door', icon:'🚪', real:'OR', n:2, fn:(a,b)=>(a||b)?1:0,
+        rule:'Glows if ONE or BOTH of the inputs are glowing.'},
+  AND: {name:'The Crypt Door', icon:'⚰️', real:'AND', n:2, fn:(a,b)=>(a&&b)?1:0,
+        rule:'Opens only if BOTH inputs are glowing.'},
+  NOT: {name:'The Mirror of Opposites', icon:'🪞', real:'NOT', n:1, fn:(a)=>a?0:1,
+        rule:'Flips things around! Glowing in means dark out. Dark in means glowing out.'},
+  NAND:{name:'The Cursed Lock', icon:'🔒', real:'NAND', n:2, fn:(a,b)=>(a&&b)?0:1,
+        rule:'Glows unless BOTH inputs are glowing. It is the opposite of the Crypt Door!'},
+  NOR: {name:'The Darkness Door', icon:'🌑', real:'NOR', n:2, fn:(a,b)=>(a||b)?0:1,
+        rule:'Glows only when NEITHER input is glowing. Any light at all puts it out!'},
+  XOR: {name:'The One-Candle Door', icon:'🕯️', real:'XOR', n:2, fn:(a,b)=>(a!==b)?1:0,
+        rule:'Glows only when EXACTLY ONE input is glowing. If both are lit, it goes dark!'},
+  XNOR:{name:"The Twins' Door", icon:'👯', real:'XNOR', n:2, fn:(a,b)=>(a===b)?1:0,
+        rule:'Glows when both inputs MATCH: both glowing, or both dark.'}
+};
+const shortName=info=>info.name.replace(/^The /,'');
+
+/* ============ PUZZLES ============ */
+const PUZZLES = {
+  /* ---- Mini + Short (ages 7-9) ---- */
+  spell_bug:{tag:'code',icon:'🐞',title:'The Buggy Spell',
+    story:"Boo-lean's floating spell has a bug! It should lift the ghost up exactly 50 steps, moving 10 steps each time.",
+    blocks:[{t:'event',x:'when 🏁 clicked'},{t:'control',x:'repeat [4] times'},{t:'motion',x:'move [10] steps up',i:1}],
+    question:'How many times should it repeat to reach 50 steps?',
+    type:'number',answer:5,
+    hints:['Count by tens: 10, 20, 30...','Each repeat moves 10 steps. How many tens make 50?','Ten, twenty, thirty, forty, fifty. That is 5 tens.']},
+  treat_swap:{tag:'logic',icon:'🍬',title:'Treat Swap',
+    story:'Three monster friends, the Ghost 👻, the Bat 🦇 and the Cat 🐱, each grabbed a different treat: 🍭, 🍫 or 🍬.',
+    clues:['The Bat has the 🍭.','The Ghost does NOT have the 🍫.'],
+    question:'Who has the 🍫?',type:'choice',choices:['👻 Ghost','🦇 Bat','🐱 Cat'],answer:2,
+    hints:['Start with the clue that tells you something for sure.','The Bat has the 🍭, so the Bat cannot have anything else.','The Bat has 🍭. The Ghost is not 🍫. So who is left for 🍫?']},
+  witch_cat:{tag:'logic',icon:'🔮',title:"The Witch's Code",
+    story:"The Mirror of Opposites is cursed! Crack the witch's number code to take control of the lantern.",
+    big:'3 · 1 · 20', key:'num',
+    question:'What word is hiding in the code?',type:'text',answers:['cat'],contains:true,
+    hints:['Use the key. Find the letter for 3, then 1, then 20.','3 is C and 1 is A. What letter is number 20?','It is a furry pet that purrs and loves to prowl on Halloween.']},
+  count_boos:{tag:'code',icon:'📣',title:'Count the Boos',
+    story:'Boo-lean is practising spooky talking! There is a loop inside a loop, so read the blocks carefully.',
+    blocks:[{t:'event',x:'when 🏁 clicked'},{t:'control',x:'repeat [3] times'},{t:'looks',x:'say [Boo!]',i:1},{t:'control',x:'repeat [2] times',i:1},{t:'looks',x:'say [Hee-hee!]',i:2}],
+    question:'How many things does the ghost say in all?',type:'number',answer:9,
+    hints:['Start with the small repeat inside. How many Hee-hees does it say each time?','Each trip around the big loop: 1 Boo + 2 Hee-hees = 3 things.','3 things each time, and the big loop goes around 3 times. 3 + 3 + 3 = ?']},
+  spooky_pattern:{tag:'logic',icon:'🔦',title:'Spooky Pattern',
+    story:'The haunted lights blink in a pattern. Can you tell what comes next?',
+    big:'🎃 👻 🦇 🎃 👻 🦇 🎃 👻 ❓',
+    question:'What comes next?',type:'choice',choices:['🎃','👻','🦇','🕷️'],answer:2,
+    hints:['Find the part that repeats.','🎃 👻 🦇 is one full set. The last set is not finished yet.','The set always ends with the same one. Which one is missing?']},
+  witch_happy:{tag:'logic',icon:'🔮',title:"The Witch's Code",
+    story:"The Crypt Door's second lock needs a secret greeting! Every number is a letter. The gap is between the two words.",
+    big:'8 · 1 · 16 · 16 · 25\n8 · 1 · 12 · 12 · 15 · 23 · 5 · 5 · 14', bigCls:'long', key:'num',
+    question:'What is the secret message?',type:'text',answers:['happy halloween'],
+    hints:['Use the key. Find the letter for each number. Do the first word first.','8 is H, 1 is A, and 16 is P. Keep going!','The first word is HAPPY. Which spooky holiday is it?']},
+  witch_trick:{tag:'logic',icon:'🔮',title:"The Witch's Code",
+    story:"The Crypt Door's second lock needs a secret saying! The witch swapped every letter for a different one. Use the key to swap them back. The gaps are between words.",
+    big:'GEVPX BE GERNG', bigCls:'long', key:'rot',
+    question:'What is the secret message?',type:'text',answers:['trick or treat'],
+    hints:['Find each code letter on the left of the key. The letter it points to is the real letter.','G points to T. Now try E, V, P and X.','It is what you say at the door on Halloween night!']},
+
+  /* ---- Long (ages 10-15): written code, read / trace / fix ---- */
+  py_offbyone:{tag:'code',icon:'🐍',title:'Off-By-One Spell',
+    story:"Boo-lean's Python function should add up 1 + 2 + 3 + ... up to and including n. But for sum_to(5) it prints 10 instead of the 15 we expected. There is a bug!",
+    code:'def sum_to(n):\n    total = 0\n    for i in range(1, n):\n        total += i\n    return total\n\nprint(sum_to(5))   # we expected 15, but got 10',
+    question:'Fix the bug. Then what will print(sum_to(20)) show?',type:'number',answer:210,
+    partial:{accept:['n1','range1n1','rangen1'],msg:"✅ Yes, that fixes the loop! Now run the fixed code in your head: what does print(sum_to(20)) show? Type that number."},
+    hints:['Pretend n is 3. Which numbers does the loop actually add up?','range(1, 3) stops BEFORE 3, so 3 is never added. How could you make the loop include n?','Change it to range(1, n + 1). Then add 1 + 2 + ... + 20. Try pairing 1+20, 2+19, 3+18...']},
+  caesar:{tag:'logic',icon:'🏛️',title:"Caesar's Crypt",
+    story:"A secret message was scrambled with a Caesar cipher: every letter was pushed forward the same number of places in the alphabet. You know the first letter of the real message is L.",
+    big:'ORJLF JDWHV', key:'alpha',
+    question:'What is the secret message?',type:'text',answers:['logic gates'],
+    hints:['The code starts with O but the real message starts with L. How far apart are O and L in the alphabet?','L moved forward 3 places to become O. So slide every letter BACK 3 places.','The second word starts J-D-W... slide back 3: J becomes G. It is what this whole game is about!']},
+  py_trace:{tag:'code',icon:'🔁',title:'Trace the Loop',
+    story:"A haunted scoreboard runs this Python code. Trace it by hand, one number at a time.",
+    code:'score = 0\nfor i in range(1, 12):\n    if i % 3 == 0:\n        score += i\n    elif i % 2 == 0:\n        score -= 1\nprint(score)',
+    question:'What number does it print?',type:'number',answer:14,
+    hints:['Make a little table: i from 1 to 11, and what happens to score each time.','Multiples of 3 (3, 6, 9) add i. The other even numbers (2, 4, 8, 10) subtract 1. Careful with 6: which branch runs first?','3 + 6 + 9 = 18, then subtract 1 four times.']},
+  knights:{tag:'logic',icon:'⚔️',title:'Knights & Knaves',
+    story:"Three ghosts guard the lock. Knights ALWAYS tell the truth. Knaves ALWAYS lie. Each ghost is one or the other.",
+    clues:['🧛 Vlad says: "Zed is a knave."','🧟 Zed says: "Wilma is a knave."','🧙 Wilma says: "Vlad and Zed are both knaves."'],
+    question:'Who is the only knight?',type:'text',answers:['zed'],contains:true,reject:['vlad','wilma'],
+    hints:['Try assuming Vlad is a knight. Does everything still make sense?','If Vlad is a knight, Zed is a knave, so Zed is lying. Check what that means for Wilma.','Vlad cannot be a knight. So Vlad is lying, and Zed is NOT a knave. Now check Zed and Wilma.']},
+  py_vowels:{tag:'code',icon:'🔤',title:'Vowel Counter',
+    story:"This function should count the vowels in a word (it should print 4 for \"halloween\"), but one line is missing.",
+    code:'def count_vowels(word):\n    count = 0\n    for letter in word:\n        if letter in "aeiou":\n            ______\n    return count\n\nprint(count_vowels("halloween"))   # should print 4',
+    question:'Fill in the blank so it works. Then what does count_vowels("spooky ghosts") return?',type:'number',answer:3,
+    partial:{accept:['count1','countcount1'],msg:'✅ Yes, that blank fixes the function! Now use it on "spooky ghosts": how many vowels does it count? Type that number.'},
+    hints:['What should happen to count each time a vowel is found?','The function should add one to count for every vowel.','The blank is count += 1. Now count the vowels in "spooky ghosts". Is y in "aeiou"?']},
+  binary:{tag:'logic',icon:'💡',title:'Pumpkin Binary',
+    story:"A row of pumpkin lights spells a word in binary. Each group of five lights is a number, with the lights worth 16, 8, 4, 2 and 1 from left to right (1 = lit). Then A=1, B=2, C=3... Z=26.",
+    big:'10000 10101 01101 10000 01011 01001 01110', bigCls:'long', key:'num',
+    question:'What is the word?',type:'text',answers:['pumpkin'],
+    hints:['Turn each group of five into a number first. 10000 means just the 16.','10000 = 16, which is the 16th letter. Use the key to find it.','The first letter is P, and 10101 = 16 + 4 + 1 = 21 is U. It is a spooky orange fruit!']},
+  py_bouncer:{tag:'code',icon:'🕴️',title:'The Bouncer Bug',
+    story:"A bouncer program decides who may go trick-or-treating. The rule: a kid may go ONLY if they are under 14 AND have a costume AND it is night. But the code has a bug.",
+    code:'def can_go(age, costume, night):\n    if age < 14 and costume or night:\n        return True\n    return False',
+    clues:['1. Age 10, costume, night','2. Age 10, no costume, night','3. Age 15, costume, night','4. Age 12, costume, daytime','5. Age 16, no costume, daytime'],
+    cluesPlain:true,
+    question:'For how many of these 5 kids does the buggy code return True when the rule says it should be False?',type:'number',answer:3,
+    hints:['In Python, and is worked out before or. Add the brackets Python is really using: (age < 14 and costume) or night.','Try each kid. If it is night, the whole thing is already True!','Check kids 1 and 5 first to see which ones are handled correctly.']},
+  truthtable:{tag:'logic',icon:'📋',title:'Fill the Table',
+    story:"The lock follows this rule. Work out the Output for all 8 rows of the truth table.",
+    big:'(A OR B) AND (NOT C)', bigCls:'long',
+    table:{head:['A','B','C','Output'],rows:[[0,0,0,'?'],[0,0,1,'?'],[0,1,0,'?'],[0,1,1,'?'],[1,0,0,'?'],[1,0,1,'?'],[1,1,0,'?'],[1,1,1,'?']]},
+    question:'Type the 8 outputs from top to bottom, like 01010101.',type:'text',answers:['00101010'],
+    hints:['Fill the table one row at a time. Work out (A OR B) first, then NOT C.','Row 1: A=0 and B=0 so (A OR B) is 0, and the output is 0 whatever C is.','Whenever C is 1, NOT C is 0, so the output is 0. The outputs start 0, 0, 1, 0...']},
+  py_lock:{tag:'code',icon:'🔐',title:'The Final Lock',
+    story:"Boo-lean needs to switch the last lantern OFF. Its lock only opens when this program prints False. Imagine each ? is True or False.",
+    code:'p = ?\nq = ?\nr = ?\ns = ?\nprint(not p or q or not r or s)',
+    question:'Only ONE combination makes it print False. Type it as four letters (T or F) in the order p q r s, like TTFF.',type:'text',answers:['tftf','truefalsetruefalse'],
+    hints:['The lock needs the whole line to be False. When is an "or" of several things False?','An "or" is False only when EVERY part is False. So not p, q, not r and s must all be False.','not p is False when p is True. Work out q, r and s the same way.']}
+};
+
+/* ============ CIRCUITS ============ */
+const CIRCUITS = {
+  mini:{label:'Mini',emoji:'👻',minPuzzles:2,layout:'col',viewBox:'0 40 1000 540',
+    box:{w:170,h:100},exitBox:{w:220,h:150},portOff:24,portOffExit:30,exitSign:86,
+    intro:"Help! I'm stuck behind the Crypt Door! It only opens when BOTH wires going into it are glowing. Tap a pumpkin to try its puzzle!",
+    inputs:[{id:'A',x:100,y:130,init:0,puzzle:'count_boos'},{id:'B',x:100,y:290,init:0,puzzle:'spooky_pattern'},{id:'C',x:100,y:450,init:0,puzzle:['witch_happy','witch_trick']}],
+    gates:[{id:'G1',type:'OR',x:410,y:210,in:['A','B']},{id:'X',type:'AND',exit:true,x:740,y:340,in:['G1','C']}]},
+  short:{label:'Short',emoji:'🎃',minPuzzles:2,layout:'col',viewBox:'0 40 1000 540',
+    box:{w:170,h:100},exitBox:{w:220,h:150},portOff:24,portOffExit:30,exitSign:86,
+    intro:"Help! I'm stuck behind the Crypt Door! It only opens when BOTH wires going into it are glowing. Tap a pumpkin to try its puzzle. Point at a door to see how it works!",
+    inputs:[{id:'A',x:100,y:120,init:0,puzzle:'spell_bug'},{id:'B',x:100,y:270,init:0,puzzle:'treat_swap'},{id:'C',x:100,y:450,init:1,puzzle:'witch_cat'}],
+    gates:[{id:'G1',type:'OR',x:410,y:195,in:['A','B']},{id:'G2',type:'NOT',x:410,y:450,in:['C']},{id:'X',type:'AND',exit:true,x:740,y:320,in:['G1','G2']}]},
+  long:{label:'Long',emoji:'💀',minPuzzles:4,layout:'row',viewBox:'0 0 1180 700',rowPort:300,
+    box:{w:140,h:84},exitBox:{w:150,h:110},portOff:20,portOffExit:24,exitSign:75,
+    intro:"Help! I'm trapped in the Crypt Door at the end of the haunted wiring. Study the whole circuit first! Every door has its own rule, and solving MORE puzzles is not always better. Point at a door to learn its rule.",
+    inputs:[
+      {id:'A',y:44,init:0,puzzle:'py_offbyone'},{id:'B',y:110,init:0,puzzle:'caesar'},
+      {id:'C',y:190,init:0,puzzle:'py_trace'},{id:'D',y:256,init:0,puzzle:'knights'},
+      {id:'E',y:336,init:1,puzzle:'py_vowels'},{id:'F',y:402,init:1,puzzle:'binary'},
+      {id:'G',y:482,init:0,puzzle:'py_bouncer'},{id:'H',y:548,init:0,puzzle:'truthtable'},
+      {id:'I',y:640,init:1,puzzle:'py_lock'}],
+    gates:[
+      {id:'G1',type:'OR',  x:440,y:77, in:['A','B']},
+      {id:'G2',type:'XOR', x:440,y:223,in:['C','D']},
+      {id:'G3',type:'NAND',x:440,y:369,in:['E','F']},
+      {id:'G4',type:'NOR', x:440,y:515,in:['G','H']},
+      {id:'G7',type:'NOT', x:440,y:640,in:['I']},
+      {id:'G5',type:'AND', x:625,y:150,in:['G1','G2']},
+      {id:'G6',type:'XNOR',x:625,y:442,in:['G3','G4']},
+      {id:'G8',type:'AND', x:810,y:540,in:['G6','G7']},
+      {id:'X', type:'AND', exit:true,x:995,y:345,in:['G5','G8']}]}
+};
+
+/* ============ HELPERS ============ */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = sec=>{sec=Math.max(0,Math.round(sec));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');};
+function ghostInner(){
+  return '<path d="M10,60 C10,25 30,8 50,8 C70,8 90,25 90,60 L90,108 L77,96 L63,110 L50,96 L37,110 L23,96 L10,108 Z" fill="#fff" stroke="#d9d0ee" stroke-width="2"/>'+
+  '<ellipse cx="36" cy="55" rx="7" ry="10" fill="#2a1840"/><ellipse cx="64" cy="55" rx="7" ry="10" fill="#2a1840"/>'+
+  '<circle cx="33" cy="51" r="2.5" fill="#fff"/><circle cx="61" cy="51" r="2.5" fill="#fff"/>'+
+  '<ellipse cx="50" cy="78" rx="9" ry="7" fill="#2a1840"/><circle cx="24" cy="70" r="6" fill="#ffb3c8" opacity=".6"/><circle cx="76" cy="70" r="6" fill="#ffb3c8" opacity=".6"/>';
+}
+const ghostSVG=()=>'<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">'+ghostInner()+'</svg>';
+/* sound (off by default so many laptops in one room stay calm) */
+let soundOn=false, ac=null;
+function tone(seq){
+  if(!soundOn) return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    let t=ac.currentTime;
+    seq.forEach(([f,d])=>{const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.06,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+      o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02);t+=d*.9;});
+  }catch(e){}
+}
+const SND={unlock:[[523,.12],[659,.12],[784,.22]],on:[[440,.1],[660,.16]],off:[[330,.12],[220,.18]],wrong:[[220,.22]],win:[[523,.12],[659,.12],[784,.12],[1047,.35]]};
+
+/* ============ STATE ============ */
+let S=null, timerId=null, hintConfirmTimer=null, winTimer=null;
+const elapsed=()=>S.frozen!=null?S.frozen:((Date.now()-S.t0)/1000+S.penalty);
+const exitGate=()=>S.c.gates.find(g=>g.exit);
+const gateBox=g=>g.exit?S.c.exitBox:S.c.box;
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));}
+function say(t){$('#boo').textContent=t;}
+
+function startGame(modeKey){
+  const base=CIRCUITS[modeKey];
+  // an input can list several puzzles; one is picked at random for each play
+  const c={...base,inputs:base.inputs.map(i=>({...i,puzzle:Array.isArray(i.puzzle)?i.puzzle[Math.floor(Math.random()*i.puzzle.length)]:i.puzzle}))};
+  S={mode:modeKey,c,values:{},unlocked:{},hintsUsed:0,hintsShown:{},penalty:0,t0:Date.now(),frozen:null,done:false,solvedCount:0};
+  c.inputs.forEach(i=>{S.values[i.id]=i.init;S.unlocked[i.id]=false;});
+  evaluate();
+  $('#board').setAttribute('viewBox',c.viewBox);
+  $('#hudTitle').textContent=c.emoji+' Ghost in the Machine · '+c.label;
+  $('#booAv').innerHTML=ghostSVG();
+  showScreen('screen-game');
+  renderBoard();updateHud();say(c.intro);
+  clearInterval(timerId);timerId=setInterval(updateHud,250);
+}
+function evaluate(){
+  const prev={...S.values};
+  S.c.gates.forEach(g=>{S.values[g.id]=GATES[g.type].fn(...g.in.map(id=>S.values[id]));});
+  return prev;
+}
+function updateHud(){
+  if(!S) return;
+  $('#timer').textContent=fmt(elapsed());
+  $('#pen').textContent=S.penalty?'(+'+fmt(S.penalty)+' hints)':'';
+  let h='';for(let i=0;i<CONFIG.MAX_HINTS;i++) h+=`<span class="${i<S.hintsUsed?'used':''}">🕯️</span>`;
+  $('#candles').innerHTML=h;
+}
+
+/* ============ BOARD ============ */
+function inPort(g,idx){
+  const {w}=gateBox(g);const n=g.in.length;
+  const off=g.exit?S.c.portOffExit:S.c.portOff;
+  return {x:g.x-w/2,y:n===1?g.y:g.y+(idx===0?-off:off)};
+}
+function outPort(g){return {x:g.x+gateBox(g).w/2,y:g.y};}
+function srcPoint(id){
+  const i=S.c.inputs.find(x=>x.id===id);
+  if(i) return S.c.layout==='row'?{x:S.c.rowPort+11,y:i.y}:{x:i.x+40,y:i.y};
+  return outPort(S.c.gates.find(g=>g.id===id));
+}
+function wirePath(a,b){const dx=(b.x-a.x)*.5;return `M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;}
+
+function pumpkinArt(on,locked){
+  return `<circle class="halo" r="70"/>${locked?'<ellipse class="ring" rx="56" ry="50"/>':''}
+    <ellipse class="rib" cx="-18" cy="0" rx="26" ry="32"/><ellipse class="rib" cx="18" cy="0" rx="26" ry="32"/>
+    <ellipse class="body" cx="0" cy="0" rx="24" ry="34"/>
+    <path class="stem" d="M-4,-33 Q0,-50 12,-48 L9,-40 Q4,-40 4,-32Z"/>
+    <path class="face" d="M-22,-6 L-13,-19 L-4,-6Z"/><path class="face" d="M4,-6 L13,-19 L22,-6Z"/>
+    <path class="face" d="M-4,6 L0,-1 L4,6Z"/>
+    <path class="face" d="M-24,12 L-15,22 L-8,14 L0,24 L8,14 L15,22 L24,12 Q0,32 -24,12Z"/>`;
+}
+function pumpkinSVG(inp){
+  const on=S.values[inp.id]===1,locked=!S.unlocked[inp.id],p=PUZZLES[inp.puzzle];
+  const status=locked?'🔒 Tap to solve':'Tap to flip the pumpkin';
+  return `<g class="sw ${on?'on':'off'}" data-input="${inp.id}" transform="translate(${inp.x},${inp.y})" tabindex="0" role="button" aria-label="Pumpkin ${inp.id}, ${p.title}, currently ${on?'lit':'unlit'}, ${locked?'locked':'unlocked'}">
+    <g class="pk">${pumpkinArt(on,locked)}</g>
+    <circle class="hit" r="55"/>
+    <circle class="badge-bg ${on?'on':''}" cx="-46" cy="-28" r="13"/><text class="badge-t" x="-46" y="-28">${on?1:0}</text>
+    ${locked?'':'<text x="36" y="-24" font-size="22">✅</text>'}
+    <text class="lbl1" y="56">${inp.id} · ${p.icon} ${esc(p.title)}</text>
+    <text class="lbl2" y="74">${p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle'}</text>
+    <text class="lbl3" y="92">${status}</text>
+  </g>`;
+}
+/* compact "row" version used by the Long circuit (9 inputs) */
+function pumpkinRowSVG(inp){
+  const on=S.values[inp.id]===1,locked=!S.unlocked[inp.id],p=PUZZLES[inp.puzzle],rp=S.c.rowPort,y=inp.y;
+  const status=locked?'🔒 Tap to solve':'Tap to flip';
+  return `<g class="sw row ${on?'on':'off'}" data-input="${inp.id}" tabindex="0" role="button" aria-label="Pumpkin ${inp.id}, ${p.title}, currently ${on?'lit':'unlit'}, ${locked?'locked':'unlocked'}">
+    <rect class="rowbg" x="6" y="${y-28}" width="${rp-6}" height="56" rx="14"/>
+    <g transform="translate(42,${y})"><g class="pk">${pumpkinArt(on,locked)}</g></g>
+    <text class="rt1" x="84" y="${y-8}">${inp.id} · ${p.icon} ${esc(p.title)}${locked?'':' ✅'}</text>
+    <text class="rt2" x="84" y="${y+7}">${p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle'}</text>
+    <text class="rt3" x="84" y="${y+21}">${status}</text>
+    <rect class="hit" x="6" y="${y-28}" width="${rp-6}" height="56"/>
+    <circle class="badge-bg ${on?'on':''}" cx="${rp}" cy="${y}" r="11"/><text class="badge-t" x="${rp}" y="${y}">${on?1:0}</text>
+  </g>`;
+}
+function gateSVG(g){
+  const info=GATES[g.type],out=S.values[g.id]===1,{w,h}=gateBox(g),x0=g.x-w/2,y0=g.y-h/2,nm=shortName(info);
+  let inner='';
+  if(g.exit){
+    const k=h/150;
+    inner=`<g transform="translate(${g.x-50*.44*k},${y0+10*k}) scale(${.44*k})">${ghostInner()}</g>
+    <text class="gname${nm.length>16?' sm':''}" x="${g.x}" y="${y0+h*.59}">${nm}</text><text class="greal" x="${g.x}" y="${y0+h*.71}">(${info.real} gate)</text>
+    <text class="gnote" x="${g.x}" y="${y0+h*.87}">${out?'The door is open! 🎉':'Boo-lean is trapped in here!'}</text>`;
+  }else{
+    const learn=S.c.layout!=='row'?' · tap to learn':'';
+    inner=`<text x="${g.x}" y="${y0+h*.36}" font-size="${h>=100?28:24}" text-anchor="middle">${info.icon}</text>
+    <text class="gname${nm.length>16?' sm':''}" x="${g.x}" y="${y0+h*.62}">${nm}</text><text class="greal" x="${g.x}" y="${y0+h*.82}">(${info.real} gate)${learn}</text>`;
+  }
+  const ports=g.in.map((id,i)=>{const p=inPort(g,i);return `<circle class="port" cx="${p.x}" cy="${p.y}" r="7"/>`;}).join('');
+  const o=outPort(g);
+  return `<g class="gate ${out?'on':'off'} ${g.exit&&out?'exit-open':''}" data-gate="${g.id}" tabindex="0" role="button" aria-label="${info.name}, ${info.real} gate, output ${out?1:0}">
+    <rect class="box" x="${x0}" y="${y0}" width="${w}" height="${h}" rx="16"/>${inner}${ports}
+    <circle class="badge-bg ${out?'on':''}" cx="${o.x}" cy="${o.y}" r="14"/><text class="badge-t" x="${o.x}" y="${o.y}">${out?1:0}</text></g>`;
+}
+function renderBoard(){
+  hideTip();
+  const focusId=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('[data-input],[data-gate]');
+  const fKey=focusId?(focusId.dataset.input?'i:'+focusId.dataset.input:'g:'+focusId.dataset.gate):null;
+  const c=S.c;let wires='',nodes='';
+  c.gates.forEach(g=>g.in.forEach((id,i)=>{
+    wires+=`<path class="wire ${S.values[id]===1?'on':''}" d="${wirePath(srcPoint(id),inPort(g,i))}"/>`;
+  }));
+  const ex=exitGate(),eo=outPort(ex),exOn=S.values[ex.id]===1;
+  const exitX=eo.x+c.exitSign;
+  wires+=`<path class="wire ${exOn?'on':''}" d="${wirePath(eo,{x:exitX-30,y:eo.y})}"/>`;
+  nodes+=`<g transform="translate(${exitX},${eo.y})"><text font-size="44" text-anchor="middle" y="8" ${exOn?'':'opacity=".4"'}>🍬</text><text class="lbl1" y="42">EXIT</text></g>`;
+  c.inputs.forEach(i=>nodes+=c.layout==='row'?pumpkinRowSVG(i):pumpkinSVG(i));
+  c.gates.forEach(g=>nodes+=gateSVG(g));
+  $('#board').innerHTML=`<defs><filter id="glow" filterUnits="userSpaceOnUse" x="-200" y="-200" width="1600" height="1000"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${wires}${nodes}`;
+  if(fKey){const [k,id]=fKey.split(':');const el=$(k==='i'?`[data-input="${id}"]`:`[data-gate="${id}"]`);if(el)el.focus();}
+}
+
+/* ============ GATE SYMBOLS + POPUP ============ */
+function symbolSVG(type){
+  const AND='M12,6 H28 A18,18 0 0 1 28,42 H12 Z';
+  const OR='M10,6 Q30,6 46,24 Q30,42 10,42 Q20,24 10,6 Z';
+  const bubble='<circle cx="50" cy="24" r="4"/>';
+  const P={
+    AND:`<path d="M2,16 H12 M2,32 H12 ${AND} M46,24 H58"/>`,
+    NAND:`<path d="M2,16 H12 M2,32 H12 ${AND} M54,24 H58"/>${bubble}`,
+    OR:`<path d="M2,16 H15 M2,32 H15 ${OR} M46,24 H58"/>`,
+    NOR:`<path d="M2,16 H15 M2,32 H15 ${OR} M54,24 H58"/>${bubble}`,
+    XOR:`<path d="M2,16 H12 M2,32 H12 ${OR} M5,6 Q15,24 5,42 M46,24 H58"/>`,
+    XNOR:`<path d="M2,16 H12 M2,32 H12 ${OR} M5,6 Q15,24 5,42 M54,24 H58"/>${bubble}`,
+    NOT:'<path d="M2,24 H12 M12,6 L12,42 L42,24 Z M50,24 H58"/><circle cx="46" cy="24" r="4"/>'
+  };
+  return `<svg class="sym" viewBox="0 0 60 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[type]}</svg>`;
+}
+function ttHTML(g){
+  const info=GATES[g.type],cur=g.in.map(id=>S.values[id]);
+  const rows=info.n===2?[[0,0],[0,1],[1,0],[1,1]]:[[0],[1]];
+  const cell=v=>v?'1 🎃':'0 ⚫';
+  let t='<table class="tt"><tr>'+(info.n===2?'<th>Input 1</th><th>Input 2</th>':'<th>Input</th>')+'<th>Output</th></tr>';
+  rows.forEach(r=>{
+    const now=r.every((v,i)=>v===cur[i]);
+    t+=`<tr class="${now?'now':''}">`+r.map(v=>`<td>${cell(v)}</td>`).join('')+`<td>${cell(info.fn(...r))}</td></tr>`;
+  });
+  return t+'</table>';
+}
+const tipEl=$('#tip');let tipFor=null;
+function hideTip(){tipFor=null;tipEl.classList.remove('show');}
+function showTip(gEl){
+  const g=S.c.gates.find(x=>x.id===gEl.dataset.gate),info=GATES[g.type];
+  tipEl.innerHTML=`<div class="th">${symbolSVG(g.type)}<div><div class="tn">${info.icon} ${info.name}</div><div class="tr">${info.real} gate</div></div></div><p>${esc(info.rule)}</p>${ttHTML(g)}`;
+  tipFor=g.id;tipEl.classList.add('show');
+  const r=gEl.getBoundingClientRect(),tw=tipEl.offsetWidth,th=tipEl.offsetHeight;
+  let x=r.right+12;
+  if(x+tw>window.innerWidth-8) x=r.left-tw-12;
+  if(x<8) x=Math.max(8,Math.min(window.innerWidth-tw-8,r.left+r.width/2-tw/2));
+  let y=Math.max(8,Math.min(window.innerHeight-th-8,r.top+r.height/2-th/2));
+  tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+}
+const gateOf=el=>el&&el.closest?el.closest('[data-gate]'):null;
+function tipOver(e){
+  if(!S||S.done||!$('#modal').hidden) return;
+  const gEl=gateOf(e.target);
+  if(gEl&&gEl.dataset.gate!==tipFor) showTip(gEl);
+}
+function tipOut(e){
+  const from=gateOf(e.target);if(!from) return;
+  if(gateOf(e.relatedTarget)!==from) hideTip();
+}
+$('#board').addEventListener('mouseover',tipOver);
+$('#board').addEventListener('mouseout',tipOut);
+$('#board').addEventListener('focusin',tipOver);
+$('#board').addEventListener('focusout',tipOut);
+
+/* ============ INTERACTION ============ */
+function onBoardActivate(t){
+  if(!S||S.done) return;
+  const sw=t.closest('[data-input]'),gt=t.closest('[data-gate]');
+  if(sw){
+    const id=sw.dataset.input;
+    if(!S.unlocked[id]) openPuzzle(id); else flip(id);
+  }else if(gt) openGateInfo(gt.dataset.gate);
+}
+$('#board').addEventListener('click',e=>onBoardActivate(e.target));
+$('#board').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onBoardActivate(e.target);}});
+
+function flip(id){
+  const prev={...S.values};
+  S.values[id]=S.values[id]?0:1;
+  evaluate();
+  tone(S.values[id]?SND.on:SND.off);
+  const changed=S.c.gates.filter(g=>prev[g.id]!==S.values[g.id]);
+  renderBoard();
+  if(S.values[exitGate().id]===1){win();return;}
+  if(changed.length){
+    const g=changed[changed.length-1],now=S.values[g.id]===1;
+    say(`${GATES[g.type].name} ${now?'is glowing!':'went dark.'} ${now?'Nice! Keep going!':'Hmm, did you mean to do that?'}`);
+  }else say('The pumpkin changed, but none of the doors did. Hmm... what does the next door need?');
+}
+
+/* ---- modal ---- */
+function openModal(html){hideTip();$('#card').innerHTML=html;$('#modal').hidden=false;}
+function closeModal(){$('#modal').hidden=true;$('#card').innerHTML='';clearTimeout(hintConfirmTimer);}
+$('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal') closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden) closeModal();});
+
+const squash=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+function blocksHTML(lines){
+  return '<div class="blocks">'+lines.map(l=>`<div class="block ${l.t}" style="margin-left:${(l.i||0)*28}px">${esc(l.x).replace(/\[(.+?)\]/g,'<span class="slot">$1</span>')}</div>`).join('')+'</div>';
+}
+function codeHTML(code){
+  return '<div class="py" role="group" aria-label="Python code">'+code.split('\n').map((l,i)=>`<div class="ln"><span class="no">${i+1}</span><span class="tx">${esc(l)}</span></div>`).join('')+'</div>';
+}
+function tableHTML(t){
+  return '<table class="tt puz"><tr>'+t.head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>'+
+    t.rows.map(r=>'<tr>'+r.map((v,i)=>`<td class="${i===r.length-1?'out':''}">${esc(v)}</td>`).join('')+'</tr>').join('')+'</table>';
+}
+function keyHTML(kind){
+  const L='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  if(kind==='rot') return '<div class="keystrip rot">'+L.map((ch,i)=>`<span><b>${ch}</b> → ${L[(i+13)%26]}</span>`).join('')+'</div>';
+  if(kind==='alpha') return '<div class="keystrip alpha">'+L.map(ch=>`<span><b>${ch}</b></span>`).join('')+'</div>';
+  return '<div class="keystrip">'+L.map((ch,i)=>`<span><b>${ch}</b>${i+1}</span>`).join('')+'</div>';
+}
+function openPuzzle(inputId){
+  const inp=S.c.inputs.find(i=>i.id===inputId),p=PUZZLES[inp.puzzle];
+  let h=`<div class="tagrow"><span class="chip ${p.tag}">${p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle'}</span><span class="chip dim">Pumpkin ${inp.id}</span></div>
+  <h2>${p.icon} ${esc(p.title)}</h2><p class="story">${esc(p.story)}</p>`;
+  if(p.blocks) h+=blocksHTML(p.blocks);
+  if(p.code) h+=codeHTML(p.code);
+  if(p.clues) h+=`<ul class="clues ${p.cluesPlain||p.clues.every(c=>/^[^\w]/.test(c))?'plain':''}">`+p.clues.map(c=>`<li>${esc(c)}</li>`).join('')+'</ul>';
+  if(p.big) h+=`<div class="big ${p.bigCls||''}">${esc(p.big)}</div>`;
+  if(p.table) h+=tableHTML(p.table);
+  if(p.key) h+=keyHTML(p.key);
+  h+=`<p class="q">${esc(p.question)}</p>`;
+  if(p.type==='choice') h+='<div class="choices">'+p.choices.map((c,i)=>`<button class="choice" data-i="${i}">${esc(c)}</button>`).join('')+'</div>';
+  else h+=`<div class="answerrow"><input id="ans" type="text" inputmode="${p.type==='number'?'numeric':'text'}" autocomplete="off" placeholder="Type your answer"><button class="btn primary" id="check">Check ✔</button></div>`;
+  h+='<div id="fb" class="fb" aria-live="polite"></div><div id="hintlist" class="hintlist"></div>';
+  h+='<div class="actions"><button class="btn ghost" id="hintBtn"></button><button class="btn ghost" id="closeBtn">Back to the board</button></div>';
+  if(ANSWERS){const a=p.type==='choice'?p.choices[p.answer]:(p.type==='number'?p.answer:p.answers[0]);h+=`<div class="ans-key">Facilitator answer key: ${esc(a)}</div>`;}
+  openModal(h);
+  $('#closeBtn').onclick=closeModal;
+  renderHints(p,inp.puzzle);
+  $('#hintBtn').onclick=()=>onHintClick(p,inp.puzzle);
+  if(p.type==='choice'){
+    document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{
+      if(Number(b.dataset.i)===p.answer) solved(inp,p);
+      else{b.disabled=true;wrong('Not that one. Try another!');}
+    });
+  }else{
+    const submit=()=>{
+      const raw=$('#ans').value.trim();if(!raw) return;
+      let ok;
+      if(p.type==='number'){
+        const m=raw.split('=').pop().replace(/[,\s]/g,'').replace(/\.$/,'');
+        ok=/^-?\d+$/.test(m)&&Number(m)===p.answer;
+      }else{
+        const sq=squash(raw);
+        ok=p.answers.map(squash).includes(sq)||
+           (!!p.contains&&p.answers.some(a=>sq.includes(squash(a)))&&!(p.reject||[]).some(r=>sq.includes(r)));
+      }
+      if(ok) solved(inp,p);
+      else if(p.partial&&p.partial.accept.includes(squash(raw))){const fb=$('#fb');fb.className='fb good';fb.textContent=p.partial.msg;$('#ans').value='';$('#ans').focus();}
+      else wrong('Hmm, not quite. Try again!');
+    };
+    $('#check').onclick=submit;
+    $('#ans').addEventListener('keydown',e=>{if(e.key==='Enter') submit();});
+    setTimeout(()=>{const a=$('#ans');if(a)a.focus();},50);
+  }
+}
+function wrong(msg){
+  const fb=$('#fb');fb.className='fb bad';fb.textContent=msg;
+  const c=$('#card');c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');tone(SND.wrong);
+}
+function solved(inp,p){
+  S.unlocked[inp.id]=true;S.solvedCount++;
+  tone(SND.unlock);
+  const fb=$('#fb');fb.className='fb good';fb.textContent='✨ Correct! Pumpkin '+inp.id+' is unlocked!';
+  document.querySelectorAll('.choice,#check,#ans,#hintBtn').forEach(el=>el.disabled=true);
+  setTimeout(()=>{closeModal();renderBoard();say(`Pumpkin ${inp.id} is unlocked! Tap it to flip it between lit and dark. Which way does the next door need it?`);},900);
+}
+function renderHints(p,pid){
+  const n=S.hintsShown[pid]||0;
+  $('#hintlist').innerHTML=p.hints.slice(0,n).map((t,i)=>`<div class="hintitem">💡 Hint ${i+1}: ${esc(t)}</div>`).join('');
+  const b=$('#hintBtn'),left=CONFIG.MAX_HINTS-S.hintsUsed;
+  b.className='btn ghost';
+  if(n>=p.hints.length){b.disabled=true;b.textContent='No more hints for this puzzle';}
+  else if(left<=0){b.disabled=true;b.textContent='No hints left';}
+  else{b.disabled=false;b.textContent=`💡 Hint (${left} left · +${fmt(CONFIG.HINT_PENALTY_SEC).replace(/^0/,'')})`;}
+}
+function onHintClick(p,pid){
+  const b=$('#hintBtn');
+  if(b.dataset.confirm==='1'){
+    clearTimeout(hintConfirmTimer);b.dataset.confirm='0';
+    S.hintsUsed++;S.penalty+=CONFIG.HINT_PENALTY_SEC;S.hintsShown[pid]=(S.hintsShown[pid]||0)+1;
+    updateHud();renderHints(p,pid);
+  }else{
+    b.dataset.confirm='1';b.className='btn warn';
+    b.textContent=`Use a hint? It adds ${fmt(CONFIG.HINT_PENALTY_SEC).replace(/^0/,'')} to your time. Tap again to confirm`;
+    hintConfirmTimer=setTimeout(()=>{if($('#hintBtn')){b.dataset.confirm='0';renderHints(p,pid);}},5000);
+  }
+}
+function openGateInfo(gid){
+  const g=S.c.gates.find(x=>x.id===gid),info=GATES[g.type];
+  const t=ttHTML(g);
+  openModal(`<h2>${info.icon} ${info.name}</h2><div style="text-align:center">${symbolSVG(g.type)}</div><p class="story"><b>(${info.real} gate)</b> ${esc(info.rule)}</p>${t}<p class="story" style="text-align:center;color:var(--dim);font-size:.95rem">The highlighted row is what is happening right now.</p><div class="actions" style="justify-content:center"><button class="btn primary" id="closeBtn">Got it!</button></div>`);
+  $('#closeBtn').onclick=closeModal;
+}
+
+/* ============ WIN ============ */
+function win(){
+  S.done=true;S.frozen=elapsed();clearInterval(timerId);updateHud();
+  tone(SND.win);say('🎉 The Crypt Door is open! I\'m free! Thank you!');
+  winTimer=setTimeout(showWin,1800);
+}
+function showWin(){
+  const min=S.c.minPuzzles,solved=S.solvedCount;
+  $('#winGhost').innerHTML=ghostSVG();
+  $('#stTime').textContent=fmt(S.frozen).replace(/^0/,'');
+  $('#stHints').textContent=S.hintsUsed;
+  $('#stSolved').textContent=solved+' / '+min;
+  $('#stSolvedLbl').textContent='Puzzles solved (fewest possible: '+min+')';
+  $('#winMsg').textContent=solved<=min
+    ? (S.hintsUsed===0?'🌟 Perfect route! You picked exactly the right puzzles with no hints!':'🌟 Perfect route! You picked exactly the right puzzles!')
+    : 'You solved '+solved+' puzzles, but only '+min+' were needed. Try again and see if you can find the shortcut!';
+  $('#mName').value='';$('#mEmail').value='';$('#mStat').textContent='';$('#mStat').style.color='';
+  $('#mSend').disabled=false;
+  $('#mailBox').hidden=(S.mode==='mini'); // no email for the Mini
+  showScreen('screen-win');
+}
+async function sendCertificate(){
+  const email=$('#mEmail').value.trim(),name=$('#mName').value.trim();
+  const st=$('#mStat'),btn=$('#mSend');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){st.style.color='var(--bad)';st.textContent='That email address does not look right. Please check it.';return;}
+  if(CONFIG.EMAIL_ENDPOINT.startsWith('PASTE')){st.style.color='var(--glow)';st.textContent='Demo mode: email is not connected yet. It would be sent to '+email+'.';return;}
+  btn.disabled=true;st.style.color='var(--dim)';st.textContent='Sending...';
+  try{
+    const res=await fetch(CONFIG.EMAIL_ENDPOINT,{method:'POST',body:JSON.stringify({email,name,mode:S.mode,seconds:Math.round(S.frozen),hints:S.hintsUsed})});
+    const data=await res.json();
+    if(data&&data.ok){st.style.color='var(--good)';st.textContent='✅ Sent! Check the inbox (and the spam folder just in case).';}
+    else{btn.disabled=false;st.style.color='var(--bad)';st.textContent=data&&data.error==='limit'?'Too many emails sent to that address today. Please try again later.':'Sorry, the email could not be sent. Please try again.';}
+  }catch(e){
+    btn.disabled=false;st.style.color='var(--bad)';st.textContent='We could not send it. Please check the Wi-Fi and try again, or ask a grown-up for help.';
+  }
+}
+$('#mSend').onclick=sendCertificate;
+
+/* ============ RESET / NAV ============ */
+function toIntro(){
+  clearInterval(timerId);clearTimeout(winTimer);closeModal();S=null;showScreen('screen-intro');
+}
+$('#newBtn').onclick=()=>{
+  if(!S) return;
+  openModal(`<h2>Start over?</h2><p class="story">This will clear the game for the next player.</p><div class="actions" style="justify-content:center"><button class="btn" id="noBtn">Keep playing</button><button class="btn primary" id="yesBtn">Yes, new player</button></div>`);
+  $('#noBtn').onclick=closeModal;$('#yesBtn').onclick=toIntro;
+};
+$('#nextBtn').onclick=toIntro;
+$('#againBtn').onclick=()=>{const m=S.mode;toIntro();startGame(m);};
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>startGame(b.dataset.mode));
+$('#soundBtn').onclick=()=>{soundOn=!soundOn;$('#soundBtn').textContent=soundOn?'🔊':'🔇';if(soundOn)tone(SND.on);};
+$('#introGhost').innerHTML=ghostSVG();
+</script>
+</body>
+</html>
