@@ -97,13 +97,14 @@ svg text{font-family:inherit}
 .exit-open .box{animation:openpulse .8s ease-in-out infinite alternate}
 @keyframes openpulse{to{stroke:#fff}}
 .sym{width:96px;height:72px;color:var(--glow)}
+.gsub{margin:-2px 0 4px;color:#d9c8f5;font-size:1.2rem}
 .tip{position:fixed;left:0;top:0;z-index:15;width:270px;background:var(--panel2);border:2px solid var(--orange);border-radius:14px;padding:12px 14px;
   box-shadow:0 0 30px rgba(255,138,31,.35);pointer-events:none;opacity:0;visibility:hidden;transition:opacity .12s}
 .tip.show{opacity:1;visibility:visible}
 .tip .th{display:flex;align-items:center;gap:10px}
 .tip .sym{width:68px;height:52px;flex:none}
-.tip .tn{font-weight:800;font-size:1.05rem;line-height:1.2}
-.tip .tr{color:var(--dim);font-size:.85rem}
+.tip .tn{font-weight:800;font-size:1.35rem;line-height:1.15;color:var(--glow)}
+.tip .tr{color:#d9c8f5;font-size:.95rem;margin-top:2px}
 .tip p{margin:8px 0 4px;font-size:.95rem;line-height:1.35}
 .tip table.tt{font-size:.9rem;margin:6px 0 0;width:100%}
 .tip table.tt th,.tip table.tt td{padding:3px 8px}
@@ -153,7 +154,15 @@ svg text{font-family:inherit}
 .btn.ghost{background:transparent}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;justify-content:space-between}
 .fb{min-height:1.6em;margin-top:10px;font-size:1.15rem;font-weight:700}
-.fb.good{color:var(--good)}.fb.bad{color:var(--bad)}
+.fb.good{color:var(--good)}.fb.bad{color:var(--bad)}.fb.hint{color:var(--glow)}
+.answerrow input.mono{font-family:Consolas,"Courier New",monospace;font-size:1.25rem}
+.bonus{margin-top:14px;border:2px dashed var(--orange);border-radius:16px;padding:10px 14px;background:rgba(255,138,31,.07)}
+.bonus .bt{font-weight:800;color:var(--glow)}
+.bonus .bt span{font-weight:400;color:var(--dim);font-size:.9rem}
+.bonus .bq{margin:6px 0 8px;font-size:1.05rem}
+.bonus.done{border-style:solid;color:var(--good);font-weight:700}
+.bonus .fb{min-height:1.3em;margin-top:6px;font-size:1rem}
+.fmt{margin-top:6px;font-size:.92rem;color:var(--dim)}
 .shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .hintlist{margin-top:6px}
@@ -165,7 +174,10 @@ table.tt th{background:#2a1c47;color:var(--dim);font-size:.95rem}
 table.tt tr.now td{background:rgba(255,138,31,.28);font-weight:800}
 table.tt.puz{font-size:1.05rem}
 table.tt.puz td,table.tt.puz th{padding:5px 18px}
-table.tt.puz td.out{color:var(--glow);font-weight:800}
+table.tt th.out{background:#12404a;color:#7ee8e0;border-left:3px solid #35c9c0}
+table.tt td.out{background:rgba(53,201,192,.17);border-left:3px solid #35c9c0;font-weight:700}
+table.tt tr.now td.out{background:rgba(53,201,192,.42);font-weight:800}
+table.tt.puz td.out{color:#9af3ec;font-weight:800}
 
 /* win */
 .stats{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0}
@@ -179,6 +191,7 @@ table.tt.puz td.out{color:var(--glow);font-weight:800}
 .mail input:focus{outline:none;border-color:var(--orange)}
 .mail .fine{font-size:.82rem;color:var(--dim);margin:8px 0}
 .mailstat{min-height:1.4em;font-weight:700;margin-top:8px}
+.mdetail{font-size:.78rem;color:var(--dim);margin-top:4px;word-break:break-word}
 .winbtns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -225,6 +238,7 @@ table.tt.puz td.out{color:var(--glow);font-weight:800}
       <div class="stat"><b id="stTime">0:00</b><span>Final time</span></div>
       <div class="stat"><b id="stHints">0</b><span>Hints used</span></div>
       <div class="stat"><b id="stSolved">0</b><span id="stSolvedLbl">Puzzles solved</span></div>
+      <div class="stat" id="stBonusBox" hidden><b id="stBonus">0</b><span>Bonus ⭐ earned</span></div>
     </div>
     <p class="sub" style="margin-bottom:6px">🍬 Boo-lean says: grab a treat from the bowl on your way out!</p>
     <div class="mail" id="mailBox">
@@ -236,6 +250,7 @@ table.tt.puz td.out{color:var(--glow);font-weight:800}
       <p class="fine">Ask a grown-up to type the address. We only use it to send this one email. We don't keep it or add anyone to a list.</p>
       <button class="btn primary" id="mSend">Send my certificate</button>
       <div class="mailstat" id="mStat" aria-live="polite"></div>
+      <div class="mdetail" id="mDetail"></div>
     </div>
     <div class="winbtns">
       <button class="btn" id="againBtn">Play again</button>
@@ -250,9 +265,9 @@ table.tt.puz td.out{color:var(--glow);font-weight:800}
 <script>
 /* ============ SETTINGS (edit these) ============ */
 const CONFIG = {
-  EMAIL_ENDPOINT: 'PASTE_APPS_SCRIPT_WEB_APP_URL_HERE', // see Code.gs setup steps
+  EMAIL_ENDPOINT: 'https://script.google.com/macros/s/AKfycby5ATq75_CnMFTcp37wVF8cwwrl5r1JRYInLotwRtFhVuTXQZoXhTzOJPNyp6ZFrabYTA/exec', // Apps Script web app that sends the certificate (see Code.gs)
   HINT_PENALTY_SEC: 180,   // each hint adds this many seconds
-  MAX_HINTS: 3
+  MAX_HINTS: 3            // default when a circuit does not set its own (Long starts with 2)
 };
 const ANSWERS = new URLSearchParams(location.search).has('answers'); // add ?answers=1 for the facilitator answer key
 
@@ -317,11 +332,14 @@ const PUZZLES = {
 
   /* ---- Long (ages 10-15): written code, read / trace / fix ---- */
   py_offbyone:{tag:'code',icon:'🐍',title:'Off-By-One Spell',
-    story:"Boo-lean's Python function should add up 1 + 2 + 3 + ... up to and including n. But for sum_to(5) it prints 10 instead of the 15 we expected. There is a bug!",
+    story:"Boo-lean's Python function should add up 1 + 2 + 3 + ... up to and including n. But for sum_to(5) it prints 10 instead of the 15 we expected. One line has a bug!",
     code:'def sum_to(n):\n    total = 0\n    for i in range(1, n):\n        total += i\n    return total\n\nprint(sum_to(5))   # we expected 15, but got 10',
-    question:'Fix the bug. Then what will print(sum_to(20)) show?',type:'number',answer:210,
-    partial:{accept:['n1','range1n1','rangen1'],msg:"✅ Yes, that fixes the loop! Now run the fixed code in your head: what does print(sum_to(20)) show? Type that number."},
-    hints:['Pretend n is 3. Which numbers does the loop actually add up?','range(1, 3) stops BEFORE 3, so 3 is never added. How could you make the loop include n?','Change it to range(1, n + 1). Then add 1 + 2 + ... + 20. Try pairing 1+20, 2+19, 3+18...']},
+    question:'Find the line with the bug and type the corrected line.',
+    type:'code',lineNo:3,show:'3: for i in range(1, n + 1):',placeholder:'line number: corrected line',
+    formatNote:'Answer format: the line number, a colon, then the whole corrected line. Example: 2: print("hi")',
+    answers:['foriinrange(1,n+1):','foriinrange(1,1+n):','foriinrange(n+1):','foriinrange(0,n+1):'],caseNudge:true,
+    bonus:{question:'Once it is fixed, what does print(sum_to(20)) show?',type:'number',answer:210},
+    hints:['Pretend n is 3. Which numbers does the loop actually add up?','range(1, 3) stops BEFORE 3, so 3 is never added. Which line controls how many times the loop runs?','The bug is on line 3. Make the range include n by using n + 1.']},
   caesar:{tag:'logic',icon:'🏛️',title:"Caesar's Crypt",
     story:"A secret message was scrambled with a Caesar cipher: every letter was pushed forward the same number of places in the alphabet. You know the first letter of the real message is L.",
     big:'ORJLF JDWHV', key:'alpha',
@@ -340,9 +358,11 @@ const PUZZLES = {
   py_vowels:{tag:'code',icon:'🔤',title:'Vowel Counter',
     story:"This function should count the vowels in a word (it should print 4 for \"halloween\"), but one line is missing.",
     code:'def count_vowels(word):\n    count = 0\n    for letter in word:\n        if letter in "aeiou":\n            ______\n    return count\n\nprint(count_vowels("halloween"))   # should print 4',
-    question:'Fill in the blank so it works. Then what does count_vowels("spooky ghosts") return?',type:'number',answer:3,
-    partial:{accept:['count1','countcount1'],msg:'✅ Yes, that blank fixes the function! Now use it on "spooky ghosts": how many vowels does it count? Type that number.'},
-    hints:['What should happen to count each time a vowel is found?','The function should add one to count for every vowel.','The blank is count += 1. Now count the vowels in "spooky ghosts". Is y in "aeiou"?']},
+    question:'Type the missing line of Python (the blank on line 5) so the function works.',
+    type:'code',show:'count += 1',answers:['count+=1','count=count+1','count=1+count'],caseNudge:true,
+    nudges:[{accept:['count++'],msg:'Good thinking if you have used other languages, but Python does not have ++. How else can you add 1 to count?'}],
+    bonus:{question:'How many vowels does count_vowels("spooky ghosts") return? (Is y in "aeiou"?)',type:'number',answer:3},
+    hints:['What should happen to count each time a vowel is found?','The function should add one to count for every vowel.','You can write count = count + 1, or the shorter count += 1.']},
   binary:{tag:'logic',icon:'💡',title:'Pumpkin Binary',
     story:"A row of pumpkin lights spells a word in binary. Each group of five lights is a number, with the lights worth 16, 8, 4, 2 and 1 from left to right (1 = lit). Then A=1, B=2, C=3... Z=26.",
     big:'10000 10101 01101 10000 01011 01001 01110', bigCls:'long', key:'num',
@@ -370,19 +390,19 @@ const PUZZLES = {
 
 /* ============ CIRCUITS ============ */
 const CIRCUITS = {
-  mini:{label:'Mini',emoji:'👻',minPuzzles:2,layout:'col',viewBox:'0 40 1000 540',
+  mini:{label:'Mini',emoji:'👻',minPuzzles:2,hints:3,layout:'col',viewBox:'0 40 1000 540',
     box:{w:170,h:100},exitBox:{w:220,h:150},portOff:24,portOffExit:30,exitSign:86,
     intro:"Help! I'm stuck behind the Crypt Door! It only opens when BOTH wires going into it are glowing. Tap a pumpkin to try its puzzle!",
     inputs:[{id:'A',x:100,y:130,init:0,puzzle:'count_boos'},{id:'B',x:100,y:290,init:0,puzzle:'spooky_pattern'},{id:'C',x:100,y:450,init:0,puzzle:['witch_happy','witch_trick']}],
     gates:[{id:'G1',type:'OR',x:410,y:210,in:['A','B']},{id:'X',type:'AND',exit:true,x:740,y:340,in:['G1','C']}]},
-  short:{label:'Short',emoji:'🎃',minPuzzles:2,layout:'col',viewBox:'0 40 1000 540',
+  short:{label:'Short',emoji:'🎃',minPuzzles:2,hints:3,layout:'col',viewBox:'0 40 1000 540',
     box:{w:170,h:100},exitBox:{w:220,h:150},portOff:24,portOffExit:30,exitSign:86,
     intro:"Help! I'm stuck behind the Crypt Door! It only opens when BOTH wires going into it are glowing. Tap a pumpkin to try its puzzle. Point at a door to see how it works!",
     inputs:[{id:'A',x:100,y:120,init:0,puzzle:'spell_bug'},{id:'B',x:100,y:270,init:0,puzzle:'treat_swap'},{id:'C',x:100,y:450,init:1,puzzle:'witch_cat'}],
     gates:[{id:'G1',type:'OR',x:410,y:195,in:['A','B']},{id:'G2',type:'NOT',x:410,y:450,in:['C']},{id:'X',type:'AND',exit:true,x:740,y:320,in:['G1','G2']}]},
-  long:{label:'Long',emoji:'💀',minPuzzles:4,layout:'row',viewBox:'0 0 1180 700',rowPort:300,
+  long:{label:'Long',emoji:'💀',minPuzzles:4,hints:2,layout:'row',viewBox:'0 0 1180 700',rowPort:300,
     box:{w:140,h:84},exitBox:{w:150,h:110},portOff:20,portOffExit:24,exitSign:75,
-    intro:"Help! I'm trapped in the Crypt Door at the end of the haunted wiring. Study the whole circuit first! Every door has its own rule, and solving MORE puzzles is not always better. Point at a door to learn its rule.",
+    intro:"Help! I'm trapped in the Crypt Door at the end of the haunted wiring. Study the whole circuit first! Every door has its own rule, and solving MORE puzzles is not always better. Point at a door to learn its rule. You start with 2 hints, but every ⭐ Bonus question you answer earns you one more.",
     inputs:[
       {id:'A',y:44,init:0,puzzle:'py_offbyone'},{id:'B',y:110,init:0,puzzle:'caesar'},
       {id:'C',y:190,init:0,puzzle:'py_trace'},{id:'D',y:256,init:0,puzzle:'knights'},
@@ -439,7 +459,7 @@ function startGame(modeKey){
   const base=CIRCUITS[modeKey];
   // an input can list several puzzles; one is picked at random for each play
   const c={...base,inputs:base.inputs.map(i=>({...i,puzzle:Array.isArray(i.puzzle)?i.puzzle[Math.floor(Math.random()*i.puzzle.length)]:i.puzzle}))};
-  S={mode:modeKey,c,values:{},unlocked:{},hintsUsed:0,hintsShown:{},penalty:0,t0:Date.now(),frozen:null,done:false,solvedCount:0};
+  S={mode:modeKey,c,values:{},unlocked:{},hintsUsed:0,hintsShown:{},penalty:0,t0:Date.now(),frozen:null,done:false,solvedCount:0,hintCap:c.hints||CONFIG.MAX_HINTS,bonusHints:0,bonusDone:{}};
   c.inputs.forEach(i=>{S.values[i.id]=i.init;S.unlocked[i.id]=false;});
   evaluate();
   $('#board').setAttribute('viewBox',c.viewBox);
@@ -458,7 +478,7 @@ function updateHud(){
   if(!S) return;
   $('#timer').textContent=fmt(elapsed());
   $('#pen').textContent=S.penalty?'(+'+fmt(S.penalty)+' hints)':'';
-  let h='';for(let i=0;i<CONFIG.MAX_HINTS;i++) h+=`<span class="${i<S.hintsUsed?'used':''}">🕯️</span>`;
+  let h='';for(let i=0;i<S.hintCap+S.bonusHints;i++) h+=`<span class="${i<S.hintsUsed?'used':''}">🕯️</span>`;
   $('#candles').innerHTML=h;
 }
 
@@ -476,6 +496,9 @@ function srcPoint(id){
 }
 function wirePath(a,b){const dx=(b.x-a.x)*.5;return `M${a.x},${a.y} C${a.x+dx},${a.y} ${b.x-dx},${b.y} ${b.x},${b.y}`;}
 
+function tagText(inp,p){
+  return (p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle')+(p.bonus&&!S.bonusDone[inp.puzzle]&&!S.unlocked[inp.id]?' · ⭐ Bonus':'');
+}
 function pumpkinArt(on,locked){
   return `<circle class="halo" r="70"/>${locked?'<ellipse class="ring" rx="56" ry="50"/>':''}
     <ellipse class="rib" cx="-18" cy="0" rx="26" ry="32"/><ellipse class="rib" cx="18" cy="0" rx="26" ry="32"/>
@@ -494,7 +517,7 @@ function pumpkinSVG(inp){
     <circle class="badge-bg ${on?'on':''}" cx="-46" cy="-28" r="13"/><text class="badge-t" x="-46" y="-28">${on?1:0}</text>
     ${locked?'':'<text x="36" y="-24" font-size="22">✅</text>'}
     <text class="lbl1" y="56">${inp.id} · ${p.icon} ${esc(p.title)}</text>
-    <text class="lbl2" y="74">${p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle'}</text>
+    <text class="lbl2" y="74">${tagText(inp,p)}</text>
     <text class="lbl3" y="92">${status}</text>
   </g>`;
 }
@@ -506,7 +529,7 @@ function pumpkinRowSVG(inp){
     <rect class="rowbg" x="6" y="${y-28}" width="${rp-6}" height="56" rx="14"/>
     <g transform="translate(42,${y})"><g class="pk">${pumpkinArt(on,locked)}</g></g>
     <text class="rt1" x="84" y="${y-8}">${inp.id} · ${p.icon} ${esc(p.title)}${locked?'':' ✅'}</text>
-    <text class="rt2" x="84" y="${y+7}">${p.tag==='code'?'💻 Code puzzle':'🧩 Logic puzzle'}</text>
+    <text class="rt2" x="84" y="${y+7}">${tagText(inp,p)}</text>
     <text class="rt3" x="84" y="${y+21}">${status}</text>
     <rect class="hit" x="6" y="${y-28}" width="${rp-6}" height="56"/>
     <circle class="badge-bg ${on?'on':''}" cx="${rp}" cy="${y}" r="11"/><text class="badge-t" x="${rp}" y="${y}">${on?1:0}</text>
@@ -519,7 +542,7 @@ function gateSVG(g){
     const k=h/150;
     inner=`<g transform="translate(${g.x-50*.44*k},${y0+10*k}) scale(${.44*k})">${ghostInner()}</g>
     <text class="gname${nm.length>16?' sm':''}" x="${g.x}" y="${y0+h*.59}">${nm}</text><text class="greal" x="${g.x}" y="${y0+h*.71}">(${info.real} gate)</text>
-    <text class="gnote" x="${g.x}" y="${y0+h*.87}">${out?'The door is open! 🎉':'Boo-lean is trapped in here!'}</text>`;
+    <text class="gnote" x="${g.x}" y="${y0+h*.87}">${out?'The door is open! 🎉':'Boo-lean is trapped!'}</text>`;
   }else{
     const learn=S.c.layout!=='row'?' · tap to learn':'';
     inner=`<text x="${g.x}" y="${y0+h*.36}" font-size="${h>=100?28:24}" text-anchor="middle">${info.icon}</text>
@@ -569,10 +592,10 @@ function ttHTML(g){
   const info=GATES[g.type],cur=g.in.map(id=>S.values[id]);
   const rows=info.n===2?[[0,0],[0,1],[1,0],[1,1]]:[[0],[1]];
   const cell=v=>v?'1 🎃':'0 ⚫';
-  let t='<table class="tt"><tr>'+(info.n===2?'<th>Input 1</th><th>Input 2</th>':'<th>Input</th>')+'<th>Output</th></tr>';
+  let t='<table class="tt"><tr>'+(info.n===2?'<th>Input 1</th><th>Input 2</th>':'<th>Input</th>')+'<th class="out">Output</th></tr>';
   rows.forEach(r=>{
     const now=r.every((v,i)=>v===cur[i]);
-    t+=`<tr class="${now?'now':''}">`+r.map(v=>`<td>${cell(v)}</td>`).join('')+`<td>${cell(info.fn(...r))}</td></tr>`;
+    t+=`<tr class="${now?'now':''}">`+r.map(v=>`<td>${cell(v)}</td>`).join('')+`<td class="out">${cell(info.fn(...r))}</td></tr>`;
   });
   return t+'</table>';
 }
@@ -580,7 +603,7 @@ const tipEl=$('#tip');let tipFor=null;
 function hideTip(){tipFor=null;tipEl.classList.remove('show');}
 function showTip(gEl){
   const g=S.c.gates.find(x=>x.id===gEl.dataset.gate),info=GATES[g.type];
-  tipEl.innerHTML=`<div class="th">${symbolSVG(g.type)}<div><div class="tn">${info.icon} ${info.name}</div><div class="tr">${info.real} gate</div></div></div><p>${esc(info.rule)}</p>${ttHTML(g)}`;
+  tipEl.innerHTML=`<div class="th">${symbolSVG(g.type)}<div><div class="tn">${info.real} gate</div><div class="tr">${info.icon} ${info.name}</div></div></div><p>${esc(info.rule)}</p>${ttHTML(g)}`;
   tipFor=g.id;tipEl.classList.add('show');
   const r=gEl.getBoundingClientRect(),tw=tipEl.offsetWidth,th=tipEl.offsetHeight;
   let x=r.right+12;
@@ -637,6 +660,61 @@ $('#modal').addEventListener('mousedown',e=>{if(e.target.id==='modal') closeModa
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden) closeModal();});
 
 const squash=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const codeNorm=s=>String(s).replace(/\s+/g,'').replace(/;+$/,'');
+function splitLine(raw){   // "3: for i ...", "line 3 - for i ...", "3. for i ..." or "3 for i ..."
+  const m=raw.match(/^\s*(?:line\s*)?(\d+)\s*[:.)\-–]?\s*([\s\S]*)$/i);
+  return m?{n:Number(m[1]),code:m[2]}:{n:null,code:raw};
+}
+function matches(p,raw){
+  if(p.type==='number'){
+    const m=raw.split('=').pop().replace(/[,\s]/g,'').replace(/\.$/,'');
+    return /^-?\d+$/.test(m)&&Number(m)===p.answer;
+  }
+  if(p.type==='code'){
+    if(p.lineNo!=null){const sp=splitLine(raw);return sp.n===p.lineNo&&p.answers.includes(codeNorm(sp.code));}
+    return p.answers.includes(codeNorm(raw));
+  }
+  const sq=squash(raw);
+  return p.answers.map(squash).includes(sq)||
+    (!!p.contains&&p.answers.some(a=>sq.includes(squash(a)))&&!(p.reject||[]).some(r=>sq.includes(r)));
+}
+function nudgeFor(p,raw){
+  if(p.partial&&p.partial.accept.includes(squash(raw))) return p.partial.msg;
+  if(p.type==='code'){
+    let c=codeNorm(raw),n=null;
+    if(p.lineNo!=null){const sp=splitLine(raw);n=sp.n;c=codeNorm(sp.code);}
+    const good=p.answers.includes(c);
+    if(p.lineNo!=null){
+      if(good&&n===null) return 'That looks like the right fix! Now add the line number it belongs on, then a colon. Example: 2: print("hi")';
+      if(good&&n!==p.lineNo) return 'Good fix, but check your line number. Look at the numbers down the left side of the code.';
+      if(n===p.lineNo&&p.answers.includes(c+':')) return 'Almost! In Python, a for line has to end with a colon ( : ).';
+    }
+    if(p.caseNudge&&(p.lineNo==null||n===p.lineNo)&&!good&&p.answers.some(a=>a.toLowerCase()===c.toLowerCase())) return 'Almost! Python cares about capital letters: count and Count, or for and For, are different things. Check your capitals.';
+    const hit=(p.nudges||[]).find(x=>x.accept.includes(c));if(hit) return hit.msg;
+  }
+  return null;
+}
+const answerText=p=>(p.type==='choice'?p.choices[p.answer]:(p.type==='number'?p.answer:(p.show||p.answers[0])))+(p.bonus?'   (bonus: '+p.bonus.answer+')':'');
+function bonusHTML(inp,p){
+  if(!p.bonus) return '';
+  if(S.bonusDone[inp.puzzle]) return '<div class="bonus done">⭐ Bonus earned! You already have the extra hint.</div>';
+  return `<div class="bonus"><div class="bt">⭐ Bonus question <span>(optional: earns you an extra hint)</span></div><p class="bq">${esc(p.bonus.question)}</p>
+    <div class="answerrow"><input id="bans" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type the number"><button class="btn" id="bcheck">Check ⭐</button></div>
+    <div id="bfb" class="fb" aria-live="polite"></div></div>`;
+}
+function checkBonus(inp,p){
+  const pid=inp.puzzle,box=$('#bans');if(!box||S.bonusDone[pid]) return;
+  const raw=box.value.trim();if(!raw) return;
+  const bfb=$('#bfb');
+  if(matches(p.bonus,raw)){
+    S.bonusDone[pid]=true;S.bonusHints++;tone(SND.unlock);updateHud();renderBoard();
+    bfb.className='fb good';bfb.textContent='⭐ Bonus earned! You get an extra hint.';
+    box.disabled=true;$('#bcheck').disabled=true;
+    if(S.unlocked[inp.id]) setTimeout(closeModal,1400); else renderHints(p,pid);
+  }else{
+    bfb.className='fb bad';bfb.textContent='Not quite. Bonus tries are free, so keep going or skip it!';tone(SND.wrong);
+  }
+}
 function blocksHTML(lines){
   return '<div class="blocks">'+lines.map(l=>`<div class="block ${l.t}" style="margin-left:${(l.i||0)*28}px">${esc(l.x).replace(/\[(.+?)\]/g,'<span class="slot">$1</span>')}</div>`).join('')+'</div>';
 }
@@ -644,7 +722,7 @@ function codeHTML(code){
   return '<div class="py" role="group" aria-label="Python code">'+code.split('\n').map((l,i)=>`<div class="ln"><span class="no">${i+1}</span><span class="tx">${esc(l)}</span></div>`).join('')+'</div>';
 }
 function tableHTML(t){
-  return '<table class="tt puz"><tr>'+t.head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>'+
+  return '<table class="tt puz"><tr>'+t.head.map((h,i)=>`<th class="${i===t.head.length-1?'out':''}">${esc(h)}</th>`).join('')+'</tr>'+
     t.rows.map(r=>'<tr>'+r.map((v,i)=>`<td class="${i===r.length-1?'out':''}">${esc(v)}</td>`).join('')+'</tr>').join('')+'</table>';
 }
 function keyHTML(kind){
@@ -665,14 +743,15 @@ function openPuzzle(inputId){
   if(p.key) h+=keyHTML(p.key);
   h+=`<p class="q">${esc(p.question)}</p>`;
   if(p.type==='choice') h+='<div class="choices">'+p.choices.map((c,i)=>`<button class="choice" data-i="${i}">${esc(c)}</button>`).join('')+'</div>';
-  else h+=`<div class="answerrow"><input id="ans" type="text" inputmode="${p.type==='number'?'numeric':'text'}" autocomplete="off" placeholder="Type your answer"><button class="btn primary" id="check">Check ✔</button></div>`;
-  h+='<div id="fb" class="fb" aria-live="polite"></div><div id="hintlist" class="hintlist"></div>';
+  else h+=`<div class="answerrow"><input id="ans" class="${p.type==='code'?'mono':''}" type="text" inputmode="${p.type==='number'?'numeric':'text'}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${p.placeholder||(p.type==='code'?'Type the missing line':'Type your answer')}"><button class="btn primary" id="check">Check ✔</button></div>${p.formatNote?`<div class="fmt">${esc(p.formatNote)}</div>`:''}`;
+  h+='<div id="fb" class="fb" aria-live="polite"></div>'+bonusHTML(inp,p)+'<div id="hintlist" class="hintlist"></div>';
   h+='<div class="actions"><button class="btn ghost" id="hintBtn"></button><button class="btn ghost" id="closeBtn">Back to the board</button></div>';
-  if(ANSWERS){const a=p.type==='choice'?p.choices[p.answer]:(p.type==='number'?p.answer:p.answers[0]);h+=`<div class="ans-key">Facilitator answer key: ${esc(a)}</div>`;}
+  if(ANSWERS){h+=`<div class="ans-key">Facilitator answer key: ${esc(answerText(p))}</div>`;}
   openModal(h);
   $('#closeBtn').onclick=closeModal;
   renderHints(p,inp.puzzle);
   $('#hintBtn').onclick=()=>onHintClick(p,inp.puzzle);
+  if(p.bonus&&$('#bcheck')){$('#bcheck').onclick=()=>checkBonus(inp,p);$('#bans').addEventListener('keydown',e=>{if(e.key==='Enter') checkBonus(inp,p);});}
   if(p.type==='choice'){
     document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{
       if(Number(b.dataset.i)===p.answer) solved(inp,p);
@@ -681,17 +760,9 @@ function openPuzzle(inputId){
   }else{
     const submit=()=>{
       const raw=$('#ans').value.trim();if(!raw) return;
-      let ok;
-      if(p.type==='number'){
-        const m=raw.split('=').pop().replace(/[,\s]/g,'').replace(/\.$/,'');
-        ok=/^-?\d+$/.test(m)&&Number(m)===p.answer;
-      }else{
-        const sq=squash(raw);
-        ok=p.answers.map(squash).includes(sq)||
-           (!!p.contains&&p.answers.some(a=>sq.includes(squash(a)))&&!(p.reject||[]).some(r=>sq.includes(r)));
-      }
-      if(ok) solved(inp,p);
-      else if(p.partial&&p.partial.accept.includes(squash(raw))){const fb=$('#fb');fb.className='fb good';fb.textContent=p.partial.msg;$('#ans').value='';$('#ans').focus();}
+      if(matches(p,raw)){solved(inp,p);return;}
+      const nudge=nudgeFor(p,raw);
+      if(nudge){const fb=$('#fb');fb.className='fb hint';fb.textContent=nudge;$('#ans').focus();}
       else wrong('Hmm, not quite. Try again!');
     };
     $('#check').onclick=submit;
@@ -704,16 +775,22 @@ function wrong(msg){
   const c=$('#card');c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');tone(SND.wrong);
 }
 function solved(inp,p){
+  const pid=inp.puzzle;
   S.unlocked[inp.id]=true;S.solvedCount++;
   tone(SND.unlock);
   const fb=$('#fb');fb.className='fb good';fb.textContent='✨ Correct! Pumpkin '+inp.id+' is unlocked!';
   document.querySelectorAll('.choice,#check,#ans,#hintBtn').forEach(el=>el.disabled=true);
-  setTimeout(()=>{closeModal();renderBoard();say(`Pumpkin ${inp.id} is unlocked! Tap it to flip it between lit and dark. Which way does the next door need it?`);},900);
+  renderBoard();
+  say(`Pumpkin ${inp.id} is unlocked! Tap it to flip it between lit and dark. Which way does the next door need it?`);
+  if(p.bonus&&!S.bonusDone[pid]){
+    fb.textContent+=' The ⭐ bonus is still open if you want an extra hint.';
+    const cb=$('#closeBtn');cb.textContent='Continue ▶';cb.className='btn primary';
+  }else setTimeout(closeModal,900);
 }
 function renderHints(p,pid){
   const n=S.hintsShown[pid]||0;
   $('#hintlist').innerHTML=p.hints.slice(0,n).map((t,i)=>`<div class="hintitem">💡 Hint ${i+1}: ${esc(t)}</div>`).join('');
-  const b=$('#hintBtn'),left=CONFIG.MAX_HINTS-S.hintsUsed;
+  const b=$('#hintBtn'),left=S.hintCap+S.bonusHints-S.hintsUsed;
   b.className='btn ghost';
   if(n>=p.hints.length){b.disabled=true;b.textContent='No more hints for this puzzle';}
   else if(left<=0){b.disabled=true;b.textContent='No hints left';}
@@ -734,7 +811,7 @@ function onHintClick(p,pid){
 function openGateInfo(gid){
   const g=S.c.gates.find(x=>x.id===gid),info=GATES[g.type];
   const t=ttHTML(g);
-  openModal(`<h2>${info.icon} ${info.name}</h2><div style="text-align:center">${symbolSVG(g.type)}</div><p class="story"><b>(${info.real} gate)</b> ${esc(info.rule)}</p>${t}<p class="story" style="text-align:center;color:var(--dim);font-size:.95rem">The highlighted row is what is happening right now.</p><div class="actions" style="justify-content:center"><button class="btn primary" id="closeBtn">Got it!</button></div>`);
+  openModal(`<h2>${info.real} gate</h2><div class="gsub">${info.icon} ${info.name}</div><div style="text-align:center">${symbolSVG(g.type)}</div><p class="story">${esc(info.rule)}</p>${t}<p class="story" style="text-align:center;color:var(--dim);font-size:.95rem">The highlighted row is what is happening right now.</p><div class="actions" style="justify-content:center"><button class="btn primary" id="closeBtn">Got it!</button></div>`);
   $('#closeBtn').onclick=closeModal;
 }
 
@@ -749,12 +826,13 @@ function showWin(){
   $('#winGhost').innerHTML=ghostSVG();
   $('#stTime').textContent=fmt(S.frozen).replace(/^0/,'');
   $('#stHints').textContent=S.hintsUsed;
+  $('#stBonus').textContent=S.bonusHints;$('#stBonusBox').hidden=!S.bonusHints;
   $('#stSolved').textContent=solved+' / '+min;
   $('#stSolvedLbl').textContent='Puzzles solved (fewest possible: '+min+')';
   $('#winMsg').textContent=solved<=min
     ? (S.hintsUsed===0?'🌟 Perfect route! You picked exactly the right puzzles with no hints!':'🌟 Perfect route! You picked exactly the right puzzles!')
     : 'You solved '+solved+' puzzles, but only '+min+' were needed. Try again and see if you can find the shortcut!';
-  $('#mName').value='';$('#mEmail').value='';$('#mStat').textContent='';$('#mStat').style.color='';
+  $('#mName').value='';$('#mEmail').value='';$('#mStat').textContent='';$('#mDetail').textContent='';$('#mStat').style.color='';
   $('#mSend').disabled=false;
   $('#mailBox').hidden=(S.mode==='mini'); // no email for the Mini
   showScreen('screen-win');
@@ -764,14 +842,15 @@ async function sendCertificate(){
   const st=$('#mStat'),btn=$('#mSend');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){st.style.color='var(--bad)';st.textContent='That email address does not look right. Please check it.';return;}
   if(CONFIG.EMAIL_ENDPOINT.startsWith('PASTE')){st.style.color='var(--glow)';st.textContent='Demo mode: email is not connected yet. It would be sent to '+email+'.';return;}
-  btn.disabled=true;st.style.color='var(--dim)';st.textContent='Sending...';
+  btn.disabled=true;st.style.color='var(--dim)';st.textContent='Sending...';$('#mDetail').textContent='';
   try{
     const res=await fetch(CONFIG.EMAIL_ENDPOINT,{method:'POST',body:JSON.stringify({email,name,mode:S.mode,seconds:Math.round(S.frozen),hints:S.hintsUsed})});
     const data=await res.json();
     if(data&&data.ok){st.style.color='var(--good)';st.textContent='✅ Sent! Check the inbox (and the spam folder just in case).';}
-    else{btn.disabled=false;st.style.color='var(--bad)';st.textContent=data&&data.error==='limit'?'Too many emails sent to that address today. Please try again later.':'Sorry, the email could not be sent. Please try again.';}
+    else{btn.disabled=false;st.style.color='var(--bad)';st.textContent=data&&data.error==='limit'?'Too many emails sent to that address today. Please try again later.':'Sorry, the email could not be sent. Please try again.';$('#mDetail').textContent='Technical note: the server said '+JSON.stringify(data);}
   }catch(e){
     btn.disabled=false;st.style.color='var(--bad)';st.textContent='We could not send it. Please check the Wi-Fi and try again, or ask a grown-up for help.';
+    $('#mDetail').textContent='Technical note: '+(e&&e.name)+': '+(e&&e.message);console.error(e);
   }
 }
 $('#mSend').onclick=sendCertificate;
